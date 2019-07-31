@@ -1,0 +1,12 @@
+### Python ###
+__pycache__/
+venv/
+
+### Git ###
+.git/
+
+### System ###
+.DS_Store
+
+### IDE ###
+.idea/
