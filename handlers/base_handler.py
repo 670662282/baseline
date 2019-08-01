@@ -53,25 +53,19 @@ class BaseHandler(RequestHandler):
 
     async def get(self):
         logger.debug("route path: BaseHandler -> get")
-        try:
-            return await self._dispatch('get')
-        except HTTPError as e:
-            logger.error(e)
-            raise HTTPError(e.status_code)
-        except Exception as e:
-            logger.error(e)
-            raise HTTPError(**HTTP_ERRORS['status_404'])
+        return await self._dispatch('get')
 
     async def post(self):
         logger.debug("route path: BaseHandler -> post")
-        try:
-            return await self._dispatch('post')
-        except HTTPError as e:
-            logger.error(e)
-            raise HTTPError(e.status_code)
-        except Exception as e:
-            logger.error(e)
-            raise HTTPError(**HTTP_ERRORS['status_404'])
+        return await self._dispatch('post')
+
+    async def put(self):
+        logger.debug("route path: BaseHandler -> put")
+        return await self._dispatch('put')
+
+    async def delete(self):
+        logger.debug("route path: BaseHandler -> delete")
+        return await self._dispatch('delete')
 
     async def _dispatch(self, method):
         kwargs = {}
@@ -80,18 +74,28 @@ class BaseHandler(RequestHandler):
             kwargs = self._delist_arguments(self.request.arguments)
         path = self.request.uri.split('?')[0]
         path_segs = path.split('/')
-        if len(path_segs) < 5:
-            logger.debug("len(path_segs) < 5")
+        if len(path_segs) < 2:
+            logger.debug("len(path_segs) < 2")
             raise HTTPError(**HTTP_ERRORS['status_404'])
 
-        method = f"{method}_{path_segs[4]}"
+        method = f"{method}_{path_segs[-1]}"
         logger.debug("path: %s, method: %s" % (path, method))
+
         func = getattr(self, method, None)
         if callable(func):
             return await func(**kwargs)
         else:
-            logger.debug("no func")
+            logger.debug("func no callable")
+            if self.is_exist_supported_method(path_segs[-1]):
+                    raise HTTPError(**HTTP_ERRORS['status_405'])
+
             raise HTTPError(**HTTP_ERRORS['status_404'])
+
+    def is_exist_supported_method(self, method_name):
+        for method in self.SUPPORTED_METHODS:
+            if callable(getattr(self, f"{method.lower()}_{method_name}", None)):
+                return True
+        return False
 
     def get_current_user(self):
         """
@@ -105,14 +109,14 @@ class BaseHandler(RequestHandler):
 
     def _delist_arguments(self, arguments):
         logger.debug(f"before_args:{arguments}")
-        for arg, value in arguments.items():
-            logger.debug(f'{type(value)}')
-            if isinstance(value, list):
-                arguments[arg] = [v.decode("utf-8").strip() if isinstance(v, bytes) else v.strip() for v in value]
+        # for arg, value in arguments.items():
+        #     logger.debug(f'{type(value)}')
+        #     if isinstance(value, list):
+        #         arguments[arg] = [v.decode("utf-8").strip() if isinstance(v, bytes) else v.strip() for v in value]
 
-        # def decode_(v):
-        #     return self.decode_argument(v).strip()
-        # arguments = {k: list(map(decode_, v)) for k, v in arguments.items()}
+        def decode_(v):
+            return self.decode_argument(v).strip()
+        arguments = {k: list(map(decode_, v)) for k, v in arguments.items()}
 
         logger.debug(f"after_args:{arguments}")
         return arguments
