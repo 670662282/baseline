@@ -1,4 +1,6 @@
 import json
+
+from tornado.escape import json_decode
 from tornado.web import RequestHandler, HTTPError
 from handlers import logger, HTTP_ERRORS
 
@@ -43,10 +45,11 @@ class BaseHandler(RequestHandler):
         """
         if self.request.body and self.request.headers.get("Content-Type", "").startswith("application/json"):
             try:
-                self.json_args = json.loads(self.request.body)
+                logger.debug(f"json_args:{self.request.body}")
+                self.json_args = json_decode(self.request.body)
                 self.request.arguments.update(self.json_args)
             except ValueError:
-                self.write_error(405, message='Unable to parse JSON.')  # Bad RequestHandler
+                self.write_error(405, msg='Unable to parse JSON.')  # Bad RequestHandler
 
     async def get(self):
         logger.debug("route path: BaseHandler -> get")
@@ -101,7 +104,6 @@ class BaseHandler(RequestHandler):
         self.set_header('Content-Type', 'application/json; charset=UTF-8')
 
     def _delist_arguments(self, arguments):
-        # todo 有問題
         logger.debug(f"before_args:{arguments}")
         for arg, value in arguments.items():
             logger.debug(f'{type(value)}')
@@ -116,7 +118,7 @@ class BaseHandler(RequestHandler):
         return arguments
 
     def write_error(self, status_code, **kwargs):
-        return self.write_json(None, status_code, self._reason)
+        return self.write_json(None, status_code, kwargs.get('msg') or self._reason)
 
     def write_error_msg(self, data):
         return self.write_json(None, data['code'], data['msg'])
