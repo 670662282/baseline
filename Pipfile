@@ -10,6 +10,7 @@ tornado = "*"
 motor = "*"
 redis = "*"
 pymongo = "*"
+pycryptodome = "*"
 
 [requires]
 python_version = "3.7"

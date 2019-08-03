@@ -10,9 +10,6 @@ BASE_ROUTES = {
         (r'/api/baseline/traffic/.*', HelpInfoHandler),
         (r'/api/baseline/uninstall/.*', HelpInfoHandler),
         (r'/api/test/.*', HelpInfoHandler),
-    ],
-
-    'default': [
         (r'/.*', APINotFoundHandler),
-    ]
+    ],
 }

@@ -12,6 +12,7 @@ class BaseHandler(RequestHandler):
     def initialize(self):
         self.json_args = dict()
 
+    @property
     def db_conn(self):
         """Returns database connection abstraction
         If no database connection is available, raises an AttributeError
@@ -20,6 +21,7 @@ class BaseHandler(RequestHandler):
             raise AttributeError("No database connection found.")
         return self.settings.get('db')
 
+    @property
     def redis_conn(self):
         """Returns redis connection abstraction
         If no redis connection is available, raises an AttributeError

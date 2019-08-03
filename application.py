@@ -14,11 +14,17 @@ from tornado.web import Application
 from handlers import logger
 from urls import BASE_ROUTES
 
-define("mongodb_hosts", default="127.0.0.1:27017", help="Main user DB")
-define("redis_host", default="127.0.0.1:6834", multiple=False,
-       help="Main user memcache servers")
+define("mongodb_url", default="mongodb://nexus:nexus@localhost:27017", help="Main user DB")
+define("mongodb_name", default="nxg_app_base", help="DB name")
+define("redis_url", default="redis://localhost:6379/0", multiple=False,
+       help="Main user mem_cache servers")
+
+define("auth_server", default="http://oauth.qavm.com:9420", help="auth_server")
+define("openapi_server", default="http://api.qavm.com:9420", help="openapi_server")
+define("app_host", default="http://nbad.qavm.app:8101", help="app_host")
+
+define("auth_bypass", default=False, help="auth_bypass")
 define("port", default=7777, help="port to listen on")
-define("cache", default=True, help="port to listen on")
 define("debug", default=True, help="debug")
 define("config", type=str, help="path to config file",
        callback=lambda path: parse_config_file(path, final=False))
@@ -57,50 +63,53 @@ SUPPORT_LOGGING_LEVELS = {
 }
 
 
-def create_db_connection(mongodb_host, db_name):
+def create_db_connection(mongodb_url, db_name):
     """
     创建 Mongodb 连接
-    :param mongodb_host:
+    :param mongodb_url:
     :param db_name:
     :return:
     """
     try:
-        return motor.MotorClient(mongodb_host)[db_name]
+        logger.debug(f"conn mongodb: {mongodb_url}")
+        return motor.MotorClient(mongodb_url)[db_name]
     except ConnectionFailure:
         logger.error('Could not connect to mongodb. exit')
         exit(1)
         return None
 
 
-def create_redis_connection(redis_host, redis_port, redis_password=''):
+def create_redis_connection(url):
     """
     创建 Redis 连接
-    :param redis_host:
-    :param redis_port:
-    :param redis_password:
+    :param url: redis_url
     :return:
     """
     try:
-        if redis_password:
-            redis_conn = redis.Redis(
-                connection_pool=redis.ConnectionPool(host=redis_host, port=redis_port, db=0, password=redis_password))
-        else:
-            redis_conn = redis.Redis(connection_pool=redis.ConnectionPool(host=redis_host, port=redis_port, db=0))
-        return redis_conn
+        logger.debug(f"conn redis: {url}")
+        return redis.from_url(url)
     except redis.ConnectionError:
         logger.warning('Could not connect to redis.')
         return None
 
 
 def main():
-    handlers = []
+    db_conn = create_db_connection(options.mongodb_url, options.mongodb_name)
+    redis_conn = create_redis_connection(options.redis_url)
 
+    handlers = []
     for handler in BASE_ROUTES.values():
         handlers.extend(handler)
+
     app = Application(handlers=handlers, debug=options.debug, **settings.APPLICATION_SETTINGS)
-    print(options.debug)
-    print(options.port)
-    app.settings['cache'] = options.cache
+
+    app.settings['db'] = db_conn
+    app.settings['redis'] = redis_conn
+    app.settings['auth_server'] = options.auth_server
+    app.settings['auth_bypass'] = options.auth_bypass
+    app.settings['openapi_server'] = options.openapi_server
+    app.settings['app_host'] = options.app_host
+
     # app.listen(options.port)
     server = HTTPServer(app, xheaders=True)
     server.bind(options.port)
@@ -117,6 +126,6 @@ if __name__ == '__main__':
     logger.setLevel(options.log_level)
     for logHandler in logger.handlers:
         logHandler.setFormatter(fm)
-    logger.warning('xxxx')
-    logger.debug('xxxx')
+
+    logger.debug('start')
     main()
